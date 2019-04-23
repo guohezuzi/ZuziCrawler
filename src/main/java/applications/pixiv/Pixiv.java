@@ -27,35 +27,25 @@ import java.util.List;
  * \* @author: guohezuzi
  * \* Date: 2019-02-05
  * \* Time: 下午4:37
- * \* Description:p站爬虫
+ * \* Description:p站爬虫（每日）
  * \
  */
 public class Pixiv {
     private static CloseableHttpClient httpClient = SocksProxy.getProxyClient();
     private static final String DIR_PATH = "data/pixiv/";
+    private static StringBuilder saveDir = new StringBuilder();
 
     enum ModeEnum {
         /*
          * 每月
          * */
-        MONTHLY("monthly"),
-        WEEKLY("weekly"),
-        DAILY("daily"),
-        MALE("male"),
-        FEMALE("female"),
-        ORIGINAL("original"),
+        monthly,
+        weekly,
+        daily,
+        male,
+        female,
+        original,
         ;
-
-        private String mode;
-
-        ModeEnum(String mode) {
-            this.mode = mode;
-        }
-
-        @Override
-        public String toString() {
-            return this.mode;
-        }
     }
 
     /**
@@ -75,6 +65,19 @@ public class Pixiv {
             IllustDto illustDto = mapper.readValue(httpEntity.getContent(), IllustDto.class);
             EntityUtils.consume(httpEntity);
             response.close();
+            // create save dir
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyMMdd");
+            Date date = new Date();
+            saveDir.append(DIR_PATH).append("rank").append(simpleDateFormat.format(date)).append("/").append(mode).append("/");
+            Path path = Paths.get(saveDir.toString());
+            if (!Files.exists(path)) {
+                try {
+                    Files.createDirectory(path);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
             List<Illust> illusts = illustDto.getIllustList();
             int size = illusts.size();
             //每个线程下载10张图片
@@ -104,7 +107,8 @@ public class Pixiv {
         public void run() {
             illusts.forEach((e) -> {
                 long id = e.getIllustId();
-                String filename = "rank" + e.getRank() + "-" + e.getTitle();
+                String title = e.getTitle().replaceAll("/", " ");
+                String filename = "rank" + e.getRank() + "-" + title;
                 String refUrl = "https://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + id;
                 String illustUrl = e.getUrl().replace("c/240x480/img-master", "img-original").
                         replace("_master1200", "");
@@ -117,27 +121,16 @@ public class Pixiv {
      * 保存图片默认后缀.jpg 目录为data/pixiv
      */
     private static void savePixiv(String url, String ref, String filename) {
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyMMdd");
-        Date date = new Date();
-        String dir = DIR_PATH + "rank" + simpleDateFormat.format(date) + "/";
-        Path path = Paths.get(dir);
-        if (!Files.exists(path)) {
-            try {
-                Files.createDirectory(path);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        savePixiv(url, ref, filename, dir, ".jpg");
+        savePixiv(url, ref, filename, ".jpg");
     }
 
     /**
      * 保存图片
      */
-    private static void savePixiv(String url, String ref, String filename, String dir, String suffix) {
+    private static void savePixiv(String url, String ref, String filename, String suffix) {
         HttpGet httpGet = new HttpGet(url);
         httpGet.addHeader("referer", ref);
-        String filePath = dir + filename + suffix;
+        String filePath = saveDir + filename + suffix;
         File file = new File(filePath);
         if (!file.exists()) {
             try {
@@ -154,9 +147,9 @@ public class Pixiv {
                     String pngSuffix = ".png";
                     if (!suffix.equals(pngSuffix)) {
                         String newUrl = url.replace(suffix, pngSuffix);
-                        savePixiv(newUrl, ref, filename, dir, pngSuffix);
+                        savePixiv(newUrl, ref, filename, pngSuffix);
                     } else {
-                        System.out.println("保存图片时出现未知错误");
+                        System.out.println("unknown suffix");
                     }
                 }
             } catch (IOException e) {
@@ -166,6 +159,14 @@ public class Pixiv {
     }
 
     public static void main(String[] args) {
-        Pixiv.getRankPictures(ModeEnum.MONTHLY);
+//        if (args.length == 1) {
+//            ModeEnum modeEnum = ModeEnum.valueOf(args[0]);
+//            Pixiv.getRankPictures(modeEnum);
+//        }else {
+//            System.out.println("Error arg length");
+//        }
+
+        ModeEnum modeEnum = ModeEnum.valueOf("weekly");
+        Pixiv.getRankPictures(modeEnum);
     }
 }
