@@ -72,7 +72,7 @@ public class Pixiv {
             Path path = Paths.get(saveDir.toString());
             if (!Files.exists(path)) {
                 try {
-                    Files.createDirectory(path);
+                    Files.createDirectories(path);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -165,8 +165,6 @@ public class Pixiv {
 //        }else {
 //            System.out.println("Error arg length");
 //        }
-
-        ModeEnum modeEnum = ModeEnum.valueOf("weekly");
-        Pixiv.getRankPictures(modeEnum);
+        Pixiv.getRankPictures(ModeEnum.monthly);
     }
 }
